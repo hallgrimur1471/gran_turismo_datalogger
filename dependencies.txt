@@ -1,0 +1,3 @@
+brow: https://github.com/Jaymon/brow
+
+disable chrome warning bar: for permanent change edit /opt/google/chrome/google-chrome with sudo and update last line with : exec -a "$0" "$HERE/chrome" --disable-infobars "$@"
