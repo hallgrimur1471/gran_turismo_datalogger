@@ -29,6 +29,7 @@ def wait_for_online():
     while broadcast_is_offine():
         sleep(poll_time)
         if time() >= next_restart:
+            debug("restarting browser")
             close_broadcast()
             sleep(5)
             open_broadcast()
