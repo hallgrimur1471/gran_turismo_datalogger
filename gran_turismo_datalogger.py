@@ -26,8 +26,13 @@ def wait_for_online():
     # (with twitch/chrome) that may or may not arise
     next_restart = time() + (random.randint(30, 120) * 60) # after 30 to 120 min
 
-    while broadcast_is_offline() and time() < next_restart:
+    while broadcast_is_offine():
         sleep(poll_time)
+        if time() >= next_restart:
+            close_broadcast()
+            sleep(5)
+            open_broadcast()
+            next_restart = time() + (random.randint(30, 120) * 60)
 
     # now broadcast is online so we will wait until player
     # goes to a screen that indicates he is going to some track
