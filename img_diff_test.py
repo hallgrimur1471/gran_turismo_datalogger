@@ -18,6 +18,7 @@ class BWImageCompare(object):
 
     def __init__(self, imga, imgb, maxsize=64):
         """Save a copy of the image objects."""
+        print "BWImageCompare_init,maxsize"+str(maxsize)
 
         sizea, sizeb = imga.size, imgb.size
 
@@ -176,6 +177,7 @@ class FuzzyImageCompare(object):
         }
 
         while not all(stop.values()):
+            print "compare,i"+str(i)
             cmp = ImageCompare(self._imga, self._imgb, i)
             #print "try"
 
