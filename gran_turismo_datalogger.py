@@ -3,17 +3,25 @@
 # RUN:
 #    ./gran_turismo_datalogger.py https://www.twitch.tv/videos/264031046?t=3m39s
 
+"""
+Documentation links:
+    Pillow (PIL):
+        https://pillow.readthedocs.io/en/5.1.x/reference/index.html
+"""
+
 import os
 from os.path import abspath, dirname
 import random
 import argparse
 import subprocess
+from time import time, sleep
 
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 import mss
 import mss.tools
-from time import time, sleep
+import PIL as pil
+from PIL import Image
 
 def main():
     args = parse_args()
@@ -227,6 +235,13 @@ def play_mario():
 #    mss.tools.to_png(sct_img.rgb, sct_img.size, output=output)
 #    print(output)
 
+def test2():
+    cd_to_project_root()
+    exemplar_image = Image.open("./exemplars/exit.png")
+    similar_image = Image.open("./tests/img/exit_similar.png")
+    comparison = ImageCompare(exemplar_image, similar_image)
+    comparison.similarity()
+
 class ImageCompare():
     """
     Used for computing similarity between two images
@@ -282,8 +297,6 @@ class ImageCompare():
         nmsds = [] # normalized mean square distances
         resize_size = 2 # first try comparing with images reduced to 2x2
 
-        nmsd = self._calculate_normalized_mean_square_distance(resize_size)
-        nmsds.append(nmsd)
         while continue_iterating:
             if (len(nmsds) >= 3 and
                 abs(nmsds[-1] - nmsds[-2]) <= abs(nmsds[-2] - nmsds[-3])
@@ -296,6 +309,7 @@ class ImageCompare():
             resize_size *= 2
 
     def _calculate_normalized_mean_square_distance(self, resize_size):
+        # MARK: I stopped here
         size1 = self._img1.size
         size2 = self._img2.size
 
@@ -319,7 +333,6 @@ class ImageCompare():
 
     def calculate_mean_square_distance():
         (size_x, size_y) = self._img1_resized.size
-        # MARK: I stopped here
         tmp = sum([(a-b)**2 for a, b in zip(self.imga_int, self.imgb_int)])
         self._mse = float(tmp) / size_x / size_y
 
@@ -332,7 +345,8 @@ def get_snip(x, y, w, h):
 
 if __name__ == "__main__": # pragma: no cover
     #main()
-    test()
+    #test()
+    test2()
 
 #        time = {"top": 11, "left": 97, "width": 36, "height": 15}
 #        trial = {"top": 10, "left": 134, "width": 31, "height": 15}

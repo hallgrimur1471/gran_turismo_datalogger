@@ -4,8 +4,12 @@
 
 # assuming installation of python3.5
 
-# image analyzis
+# image OCR
 sudo apt-get install -y tesseract-ocr 
+
+# more image analyzis
+sudo python3.5 -m pip uninstall PIL
+sudo python3.5 -m pip install -U Pillow
 
 # sound
 sudo apt-get install -y sox
