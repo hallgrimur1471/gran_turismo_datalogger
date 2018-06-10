@@ -17,13 +17,24 @@ from time import time, sleep
 
 def main():
     args = parse_args()
-    datalogger = Datalogger()
-    datalogger.start()
+    cd_to_project_root()
+    data_logger = DataLogger()
+    data_logger.start()
 
-    change_working_directory_to_datalogger()
-    args = parse_args()
-    driver = open_broadcast()
-    wait_for_online(args)
+def test():
+    try:
+        args = parse_args()
+        cd_to_project_root()
+        data_logger = DataLogger()
+        data_logger
+        driver = open_broadcast(args.BROADCAST)
+        sleep(8)
+        wait_for_track_indication()
+    except:
+        raise
+    finally:
+        close_broadcast(driver)
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -166,6 +177,16 @@ class DataLogger():
         # TODO: implement
         return "example_car_name"
 
+def cd_to_project_root():
+    this_scripts_file = abspath(__file__)
+    this_scripts_directory = dirname(this_scripts_file)
+    os.chdir(this_scripts_directory)
+
+def change_working_directory_to_gran_turismo_datalogger():
+    this_scripts_file = abspath(__file__)
+    this_scripts_directory = dirname(this_scripts_file)
+    os.chdir(this_scripts_directory)
+
 def broadcast_is_offline():
     # TODO: implement
     return False
@@ -223,6 +244,8 @@ class ImageCompare():
             img1 (???): first image
             img2 (???): second image to compare to first image
         """
+        # TODO: make these images python objects, which image library should
+        #       we use?
         self._img1 = img1
         self._img2 = img2
         self._normalized_mean_square_distance = None
@@ -248,9 +271,7 @@ class ImageCompare():
         self._normalized_mean_square_distance = None
 
     def similarity(self):
-        # TODO: implement
-        # 100 - nmsd ?
-        pass
+        return 100.0 - self.normalized_mean_square_distance()
 
     @property
     def normalized_mean_square_distance(self):
@@ -261,7 +282,7 @@ class ImageCompare():
         nmsds = [] # normalized mean square distances
         resize_size = 2 # first try comparing with images reduced to 2x2
 
-        nmsd = calculate_normalized_mean_square_distance()
+        nmsd = self._calculate_normalized_mean_square_distance(resize_size)
         nmsds.append(nmsd)
         while continue_iterating:
             if (len(nmsds) >= 3 and
@@ -274,7 +295,7 @@ class ImageCompare():
                         resize_size))
             resize_size *= 2
 
-    def _calculate_normalized_mean_square_distance(resize_size):
+    def _calculate_normalized_mean_square_distance(self, resize_size):
         size1 = self._img1.size
         size2 = self._img2.size
 
@@ -309,19 +330,7 @@ class ImageCompare():
 def get_snip(x, y, w, h):
     pass
 
-def test():
-    try:
-        change_working_directory_to_datalogger()
-        args = parse_args()
-        driver = open_broadcast(args.BROADCAST)
-        sleep(8)
-        wait_for_track_indication()
-    except:
-        raise
-    finally:
-        close_broadcast(driver)
-
-if __name__ == "__main__":
+if __name__ == "__main__": # pragma: no cover
     #main()
     test()
 
