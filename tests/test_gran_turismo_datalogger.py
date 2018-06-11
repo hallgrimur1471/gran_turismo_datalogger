@@ -60,13 +60,15 @@ class TestImageCompare(object):
             self,
         ):
         gt.cd_to_project_root()
+        from PIL import Image
+        exemplar_image = Image.open("./exemplars/exit.png")
+        similar_image = Image.open("./tests/img/exit_similar.png")
+        unsimilar_image = Image.open("./tests/img/exit_unsimilar.png")
 
         # test similar
-        comparison = gt.ImageCompare("./exemplars/exit.png",
-                                     "./tests/img/exit_similar.png")
-        assert comparison.similarity() == 97.43
+        comparison = gt.ImageCompare(exemplar_image, similar_image)
+        assert round(comparison.similarity(), 2) == 97.41
 
         # test unsimilar
-        comparison = gt.ImageCompare("./exemplars/exit.png",
-                                     "./tests/img/exit_unsimilar.png")
-        assert comparison.similarity() == 66.88
+        comparison = gt.ImageCompare(exemplar_image, unsimilar_image)
+        assert round(comparison.similarity(), 2) == 59.05

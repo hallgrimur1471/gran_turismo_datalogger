@@ -15,6 +15,7 @@ import random
 import argparse
 import subprocess
 from time import time, sleep
+import math
 
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
@@ -238,9 +239,9 @@ def play_mario():
 def test2():
     cd_to_project_root()
     exemplar_image = Image.open("./exemplars/exit.png")
-    similar_image = Image.open("./tests/img/exit_similar.png")
+    similar_image = Image.open("./tests/img/exit_unsimilar.png")
     comparison = ImageCompare(exemplar_image, similar_image)
-    comparison.similarity()
+    print(comparison.similarity())
 
 class ImageCompare():
     """
@@ -248,19 +249,28 @@ class ImageCompare():
 
     This class was based on this stuff:
         https://gist.github.com/attilaolah/1940208
+    In the gist pixel values where converted to int using:
+        yield pixel[0] | (pixel[1]<<8) | (pixel[2]<<16)
+    I think the values did not give correct pixel differences since the
+    difference between pixels
+        (0,255,0) - (0,0,0)
+    will be greater than
+        (255,0,0) - (0,0,0)
+    So I rewrote the class, only with support to calculate mean square error
+    and with improved pixel difference system
 
     Usage example:
-        cmp = ImageCompare(img1, img2)
-        print(cmp.similarity())
+        img1 = pil.Image.open("./image1.png")
+        img2 = pil.Image.open("./image2.png")
+        comparsion = ImageCompare(img1, img2)
+        print(comparison.similarity())
     """
     def __init__(self, img1, img2):
         """
         Args:
-            img1 (???): first image
-            img2 (???): second image to compare to first image
+            img1 (PIL.Image): first image
+            img2 (PIL.Image): second image to compare to first image
         """
-        # TODO: make these images python objects, which image library should
-        #       we use?
         self._img1 = img1
         self._img2 = img2
         self._normalized_mean_square_distance = None
@@ -272,7 +282,6 @@ class ImageCompare():
     @img1.setter
     def img1(self, img):
         self._img1 = img
-        self._mean_square_distance = None
         self._normalized_mean_square_distance = None
     
     @property
@@ -282,11 +291,7 @@ class ImageCompare():
     @img2.setter
     def img2(self, img):
         self._img2 = img
-        self._mean_square_distance = None
         self._normalized_mean_square_distance = None
-
-    def similarity(self):
-        return 100.0 - self.normalized_mean_square_distance()
 
     @property
     def normalized_mean_square_distance(self):
@@ -303,42 +308,46 @@ class ImageCompare():
                 ):
                 continue_iterating = False
             else:
-                nmsds.append(
-                    self._calculate_normalized_mean_square_distance(
-                        resize_size))
+                nmsd = self._calculate_normalized_mean_square_distance(
+                        resize_size)
+                nmsds.append(nmsd)
             resize_size *= 2
 
+        return nmsds[-1]
+
+    def similarity(self):
+        return 100.0 - 100*self.normalized_mean_square_distance
+
     def _calculate_normalized_mean_square_distance(self, resize_size):
-        # MARK: I stopped here
-        size1 = self._img1.size
-        size2 = self._img2.size
+        (img1_width, img1_height) = self._img1.size
+        (img2_width, img2_height) = self._img2.size
 
-        newx = min(size1[0], size2[0], resize_size)
-        newy = min(size1[1], size2[1], resize_size)
+        new_width = min(img1_width, img2_width, resize_size)
+        new_height = min(img1_height, img2_height, resize_size)
 
-        # Rescale to a common size:
-        self._img1_resized = self._img1.resize((newx, newy), Image.BICUBIC)
-        self._img2_resized = self._img2.resize((newx, newy), Image.BICUBIC)
+        # Rescale to resize_size
+        img1_resized = self._img1.resize(
+                (new_width, new_height), resample=Image.BICUBIC)
+        img2_resized = self._img2.resize(
+                (new_width, new_height), resample=Image.BICUBIC)
 
-        #if not self._colour:
-        #    # Store the images in B/W Int format
-        #    imga = imga.convert('I')
-        #    imgb = imgb.convert('I')
-
-        # Store the common image size
-        #self.x, self.y = newx, newy
-
-        mean_square_distance = self._calculate_mean_square_distance()
+        mean_square_distance = self._calculate_mean_square_distance(
+                img1_resized, img2_resized)
         normalized_mean_square_distance = math.sqrt(mean_square_distance) / 255
+        return normalized_mean_square_distance
 
-    def calculate_mean_square_distance():
-        (size_x, size_y) = self._img1_resized.size
-        tmp = sum([(a-b)**2 for a, b in zip(self.imga_int, self.imgb_int)])
-        self._mse = float(tmp) / size_x / size_y
-
-        return self._mse
-
-
+    def _calculate_mean_square_distance(self, img1, img2):
+        (width, height) = img1.size
+        mse = 0
+        for i in range(width):
+            for j in range(height):
+                img1_pixel = img1.getpixel((i,j))
+                img2_pixel = img2.getpixel((i,j))
+                mse += (img1_pixel[0] - img2_pixel[0])**2 # R
+                mse += (img1_pixel[1] - img2_pixel[1])**2 # G
+                mse += (img1_pixel[2] - img2_pixel[2])**2 # B
+        mse = float(mse) / (width*height*3)
+        return mse
 
 def get_snip(x, y, w, h):
     pass
