@@ -5,8 +5,12 @@
 
 """
 Documentation links:
+    Python 3.5:
+        https://docs.python.org/3.5/
     Pillow (PIL):
         https://pillow.readthedocs.io/en/5.1.x/reference/index.html
+    MSS:
+        http://python-mss.readthedocs.io/api.html
 """
 
 import os
@@ -187,11 +191,6 @@ class DataLogger():
         return "example_car_name"
 
 def cd_to_project_root():
-    this_scripts_file = abspath(__file__)
-    this_scripts_directory = dirname(this_scripts_file)
-    os.chdir(this_scripts_directory)
-
-def change_working_directory_to_gran_turismo_datalogger():
     this_scripts_file = abspath(__file__)
     this_scripts_directory = dirname(this_scripts_file)
     os.chdir(this_scripts_directory)
