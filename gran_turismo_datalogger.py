@@ -1,7 +1,7 @@
 #!/usr/bin/env python3.5
 
 # RUN:
-#    ./gran_turismo_datalogger.py https://www.twitch.tv/videos/264031046?t=3m39s
+#  ./gran_turismo_datalogger.py https://www.twitch.tv/videos/275549220?t=18m01s
 
 """
 Documentation links:
@@ -11,10 +11,15 @@ Documentation links:
         https://pillow.readthedocs.io/en/5.1.x/reference/index.html
     MSS:
         http://python-mss.readthedocs.io/api.html
+    Selenium:
+        docs: https://docs.seleniumhq.org/docs/
+        handbook (WIP): https://seleniumhq.github.io/docs/
+        api: https://seleniumhq.github.io/selenium/docs/api/py/api.html
 """
 
 import os
 from os.path import abspath, dirname
+import sys
 import random
 import argparse
 import subprocess
@@ -35,19 +40,20 @@ def main():
     data_logger.start()
 
 def test():
+    args = parse_args()
+    cd_to_project_root()
+    data_logger = DataLogger(args.BROADCAST)
     try:
-        args = parse_args()
-        cd_to_project_root()
-        data_logger = DataLogger()
-        data_logger
-        driver = open_broadcast(args.BROADCAST)
-        sleep(8)
-        wait_for_track_indication()
-    except:
-        raise
+        data_logger.start()
     finally:
-        close_broadcast(driver)
+        data_logger.stop()
 
+def test2():
+    cd_to_project_root()
+    exemplar_image = Image.open("./exemplars/exit.png")
+    similar_image = Image.open("./tests/img/exit_unsimilar.png")
+    comparison = ImageCompare(exemplar_image, similar_image)
+    print(comparison.similarity())
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -64,6 +70,10 @@ class DataLogger():
     Monitors gran turismo spors gameplay broadcast, analyzes what's happening
     and logs lap times
 
+    Note:
+        This class uses relative paths. Your working directory must be
+        gran_turismo_datalogger for this class to work.
+
     API:
         self.start()
         self.close()
@@ -79,6 +89,7 @@ class DataLogger():
         self._broadcast = broadcast
         self._browser = webdriver.Chrome()
         self._screen = None
+        self._screen_resolution = None
 
         self._has_seen_track_pre_stage_indication = False
 
@@ -91,23 +102,41 @@ class DataLogger():
         self._open_broadcast()
         with mss.mss() as screen:
             self._screen = screen
+            self._verify_screen_resolution()
             self._wait_for_online()
 
-    def _change_working_directory_to_datalogger():
-        this_scripts_file = abspath(__file__)
-        this_scripts_directory = dirname(this_scripts_file)
-        os.chdir(this_scripts_directory)
+    def stop(self):
+        pass
+        self._browser.quit()
 
-    def _open_broadcast():
-        self._browser.get(self.broadcast)
+    def _verify_screen_resolution(self):
+        """
+        Checks resolution of screen, throws error if resolution not supported
+        """
+        supported_resolutions = [(1600, 900)]
+
+        monitor = self._screen.monitors[1:][0]
+        resolution = (monitor["width"], monitor["height"])
+        if resolution not in supported_resolutions:
+            raise RuntimeError(
+                    "Current screen resolution not supported, this application "
+                    "monitors your screen using hard coded pixel positions and "
+                    "therefor only few resolutions are supported. Please try "
+                    "changing your display settings to one of the supported "
+                    "resolutions: "+str(supported_resolutions))
+
+        self._screen_resolution = resolution
+
+    def _open_broadcast(self):
+        self._browser.get(self._broadcast)
         elem = self._browser.find_element_by_class_name(
                 "pl-button__fullscreen--tooltip-left")
         elem.click()
 
-    def _close_broadcast():
+    def _close_broadcast(self):
         self._browser.close()
 
-    def _wait_for_online():
+    def _wait_for_online(self):
         """
         wait until broadcast comes online
         """
@@ -118,7 +147,7 @@ class DataLogger():
         # (with twitch/chrome) that may or may not arise
         next_restart = time() + (random.randint(30, 120) * 60) # 30 to 120 min
     
-        while broadcast_is_offine():
+        while self._broadcast_is_offline():
             sleep(poll_time)
             if time() >= next_restart:
                 self._restart_browser()
@@ -128,13 +157,17 @@ class DataLogger():
         # goes to a screen that indicates he is going to some track
         self._wait_for_track_pre_stage_indication()
 
-    def _restart_browser():
+    def _broadcast_is_offline(self):
+        # TODO: implement
+        return False
+
+    def _restart_browser(self):
         self._debug("restarting browser")
         self._close_broadcast()
         sleep(5)
         self._open_broadcast()
 
-    def _wait_for_track_pre_stage_indication():
+    def _wait_for_track_pre_stage_indication(self):
         """
         Look for signs that player is going to a track, we're looking for the
         screens that you go to just before you press "go to track"
@@ -147,28 +180,74 @@ class DataLogger():
         believe_go_to_track_is_there = 95
         believe_is_on_track = 97
 
-        # When you go to time trial, before you go to track
-        # there is this red exit symbol, see examplars/exit.png
-        exit_likelihood = self._check_for_exit_symbol()
-        go_to_track_likelihood = self._check_for_go_to_track_symbol()
+        exits = []
+        times = []
+        imgs = []
 
-        if (exit_likelihood >= believe_exit_is_there and
-            go_to_track_likelihood >= believe_go_to_track_is_there
-            ):
-            self._note_down_track_info()
-            self._has_seen_track_pre_stage_indication = True
+        duration = 90 # seconds
+        duration = 60
+        start = time()
+        while time() - start < duration:
+            # When you go to time trial, before you go to track
+            # there is this red exit symbol, see examplars/exit.png
+            exit_likelihood, exit_img = self._check_for_exit_symbol()
 
-        if self._has_seen_track_pre_stage_indication:
-            on_track_likelihood = self._check_for_on_track_indications()
+            exits.append(exit_likelihood)
+            times.append(time())
+            imgs.append(exit_img)
+            sleep(0.2)
+            #go_to_track_likelihood = self._check_for_go_to_track_symbol() !!!!!
+    
+            # NOTE: not yet ...
+            #if (exit_likelihood >= believe_exit_is_there and
+            #    go_to_track_likelihood >= believe_go_to_track_is_there
+            #    ):
+            #    self._note_down_track_info()
+            #    self._has_seen_track_pre_stage_indication = True
+    
+            #if self._has_seen_track_pre_stage_indication:
+            #    on_track_likelihood = self._check_for_on_track_indications()
+    
+            #if on_track_likelihood >= believe_on_track:
+            #    self._start_logging_lap_times()
 
-        if on_track_likelihood >= believe_on_track:
-            self._start_logging_lap_times()
+        with open("./exit_detection.data", 'w') as f:
+            for i in range(len(exits)):
+                f.write("{} {}\n".format(times[i], exits[i]))
+                imgs[i].save("./data/exit_detection_imgs_02/exit"+
+                             str(i).zfill(4)+".png")
 
-    def _start_loggin_lap_times():
+        self.stop()
+
+    def _check_for_exit_symbol(self):
+        # exit symbol:
+        #     x: 984, y: 821, w:47,  h:48
+        if self._screen_resolution = (1920, 1080):
+            exit = # TODO: continue here
+        elif self._screen_resolution = (1600, 900):
+            exit = {"top": 826, "left": 989, "width": 47, "height": 48}
+        else:
+            raise RuntimeError("Resolution not supported")
+
+        screen_shot = self._screen.grab(exit)
+        exit_img = self._screen_shot_2_image(screen_shot)
+        exit_exemplar = Image.open("./exemplars/exit.png")
+
+        comparison = ImageCompare(exit_img, exit_exemplar)
+        return comparison.similarity(), exit_img
+
+    def _screen_shot_2_image(self, screen_shot):
+        """
+        Converts mss.base.ScreenShot to PIL.Image
+        """
+        return Image.frombytes('RGB', screen_shot.size, screen_shot.bgra,
+                               'raw', 'BGRX')
+
+    def _start_loggin_lap_times(self):
         # TODO: implement
         pass
 
-    def _note_down_track_info():
+    def _note_down_track_info(self):
         """
         Called when it's likely we are on a page where player is just about to
         'go to track' here we want to figure out which track the player is going
@@ -182,11 +261,11 @@ class DataLogger():
         self._track = self._determine_track_name()
         self._car = self._determine_car_name()
 
-    def _determine_track_name():
+    def _determine_track_name(self):
         # TODO: implement
         return "example_track_name"
 
-    def _determine_car_name():
+    def _determine_car_name(self):
         # TODO: implement
         return "example_car_name"
 
@@ -194,24 +273,6 @@ def cd_to_project_root():
     this_scripts_file = abspath(__file__)
     this_scripts_directory = dirname(this_scripts_file)
     os.chdir(this_scripts_directory)
-
-def broadcast_is_offline():
-    # TODO: implement
-    return False
-
-def look_for_exit_symbol():
-    # exit symbol:
-    #     x: 984, y: 821, w:47,  h:48
-    exit = {"top": 826, "left": 989, "width": 47, "height": 48}
-    img = sct.grab(exit)
-    mss.tools.to_png(img.rgb, img.size, output="exit.png")
-    examplar = "./exemplars/exit.png"
-    diff = subprocess.run(
-        "./img_diff_test.py {} ./img/{}".format(img, exemplar),
-        stdout=PIPE, shell=True).stdout.decode().rstrip()
-    diff = float(diff)
-    return diff
-
 
 def play_mario():
     #subprocess.run(["play", "./mario_coin.wav", ">", "/dev/null", "2>&1"])
@@ -234,13 +295,6 @@ def play_mario():
 #
 #    mss.tools.to_png(sct_img.rgb, sct_img.size, output=output)
 #    print(output)
-
-def test2():
-    cd_to_project_root()
-    exemplar_image = Image.open("./exemplars/exit.png")
-    similar_image = Image.open("./tests/img/exit_unsimilar.png")
-    comparison = ImageCompare(exemplar_image, similar_image)
-    print(comparison.similarity())
 
 class ImageCompare():
     """
@@ -353,8 +407,8 @@ def get_snip(x, y, w, h):
 
 if __name__ == "__main__": # pragma: no cover
     #main()
-    #test()
-    test2()
+    test()
+    #test2()
 
 #        time = {"top": 11, "left": 97, "width": 36, "height": 15}
 #        trial = {"top": 10, "left": 134, "width": 31, "height": 15}
